@@ -1,11 +1,15 @@
 ﻿using Google.Protobuf.Reflection;
 using Microsoft.Ajax.Utilities;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Data.Entity.Core.Common.CommandTrees;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Web;
 using System.Web.Http;
+using System.Web.Instrumentation;
+using System.Xml.Schema;
 using WebApplication2.Models.Context;
 using WebApplication2.Models.Entities;
 
@@ -32,8 +36,42 @@ namespace WebApplication2.Controllers
         }
 
         [HttpGet]
-        public IHttpActionResult SelectLivros()
+        public IHttpActionResult SelectLivros(int pagina = 1, int quantidadeItens = 10)
         {
+
+            if (pagina <= 0 || quantidadeItens <= 0)
+            {
+                return BadRequest("A pagina e a quantidade de Itens devem ser maiores que zero");
+            }
+
+            if (quantidadeItens > 10)
+                return BadRequest("O tamanho maximo da pagina permitido é 10");
+
+
+            int totalPaginas = (int)Math.Ceiling(db.Livros.Count() / Convert.ToDecimal(quantidadeItens));
+
+            if (pagina > totalPaginas)
+                return NotFound();
+
+
+            HttpContext.Current.Response.AddHeader("x-Desenvolvedor", "Ricardo Rocha");
+            HttpContext.Current.Response.AddHeader("x-Paginacao-TotalPaginas", totalPaginas.ToString());
+
+            if (pagina > 1)
+            {
+                HttpContext.Current.Response.AddHeader("x-Paginacao-PaginaAnterior", Url.Link("DefaultApi", new { pagin = pagina - 1, quantidadeItens }));
+            }
+
+            if (pagina > 1)
+            {
+                HttpContext.Current.Response.AddHeader("x-Paginacao-ProximaPagina", Url.Link("DefaultApi", new { pagin = pagina + 1, quantidadeItens }));
+            }
+
+            var livros = db.Livros.OrderBy(c => c.Id).Skip(quantidadeItens * (pagina - 1)).Take(quantidadeItens);
+
+
+
+
             var livro = db.Livros;
             return Ok(livro);
         }
